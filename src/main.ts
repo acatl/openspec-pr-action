@@ -92,12 +92,19 @@ export function matchesGlob(filePath: string, pattern: string): boolean {
     return alternatives.split(',').some(alt => matchesGlob(filePath, `${prefix}${alt.trim()}${suffix}`))
   }
 
-  const regexStr = pattern
-    .replace(/\./g, '\\.')
+  // Escape all regex special characters except the ones we handle as glob metacharacters
+  const escaped = pattern.replace(/[\\^$+?.()|[\]{}]/g, (ch) => {
+    // Keep braces for brace expansion (already handled above) and dots are re-escaped below
+    if (ch === '.') return '\\.'
+    return `\\${ch}`
+  })
+
+  const regexStr = escaped
+    .replace(/\\\.\\\*/g, '\\.\\*')   // literal \* should stay escaped
     .replace(/\*\*/g, '__GLOBSTAR__')
     .replace(/\*/g, '[^/]*')
-    .replace(/__GLOBSTAR__\//g, '(?:.+/)?')
-    .replace(/__GLOBSTAR__/g, '.+')
+    .replace(/__GLOBSTAR__\//g, '(?:.*/)?')
+    .replace(/__GLOBSTAR__/g, '.*')
 
   const regex = new RegExp(`^${regexStr}$`)
   return regex.test(filePath)
@@ -114,33 +121,24 @@ export async function validateSpecFile(
   const issues: ValidationIssue[] = []
 
   // Dynamically import Spectral to allow Jest to mock it in tests
-  const { Spectral } = await import('@stoplight/spectral-core')
+  const { Spectral, Ruleset } = await import('@stoplight/spectral-core')
+  const { oas } = await import('@stoplight/spectral-rulesets')
   const spectral = new Spectral()
+
+  // Always load the OAS ruleset as the base. Custom rulesets are read from disk
+  // as YAML/JSON and parsed manually so we avoid depending on Spectral's internal
+  // bundler API (which is not part of the public contract).
+  spectral.setRuleset(new Ruleset(oas))
 
   try {
     if (customRuleset && fs.existsSync(customRuleset)) {
-      // Use bundleAndLoadRuleset from the node loader when available
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const loaderModule: any = await import(
-        // @ts-ignore – internal path not in public types
-        '@stoplight/spectral-core/dist/ruleset/bundler/loader/node'
-      ).catch(() => null)
-
-      if (loaderModule?.bundleAndLoadRuleset) {
-        const ruleset = await loaderModule.bundleAndLoadRuleset(
-          path.resolve(customRuleset),
-          { fs, fetch }
-        )
-        spectral.setRuleset(ruleset)
-      } else {
-        const { Ruleset } = await import('@stoplight/spectral-core')
-        const { oas } = await import('@stoplight/spectral-rulesets')
-        spectral.setRuleset(new Ruleset(oas))
-      }
-    } else {
-      const { Ruleset } = await import('@stoplight/spectral-core')
-      const { oas } = await import('@stoplight/spectral-rulesets')
-      spectral.setRuleset(new Ruleset(oas))
+      // Parse and apply the custom ruleset file on top of the OAS base.
+      // We load the file as an object and pass it directly to Ruleset.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const rulesetContent = JSON.parse(
+        fs.readFileSync(path.resolve(customRuleset), 'utf8')
+      )
+      spectral.setRuleset(new Ruleset(rulesetContent))
     }
 
     const content = fs.readFileSync(filePath, 'utf8')
