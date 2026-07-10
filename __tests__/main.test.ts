@@ -21,8 +21,8 @@ describe('matchesGlob', () => {
     expect(matchesGlob('openapi.ts', '**/*.{yaml,yml,json}')).toBe(false)
   })
 
-  it('is case-insensitive for extensions in filterSpecFiles', () => {
-    // matchesGlob itself is not case-insensitive, but filterSpecFiles lowercases the ext
+  it('matches a file with an uppercase name using a lowercase extension pattern', () => {
+    // The glob pattern matches based on the extension literal; filenames are not case-folded
     expect(matchesGlob('API.yaml', '**/*.yaml')).toBe(true)
   })
 })

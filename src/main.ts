@@ -92,15 +92,22 @@ export function matchesGlob(filePath: string, pattern: string): boolean {
     return alternatives.split(',').some(alt => matchesGlob(filePath, `${prefix}${alt.trim()}${suffix}`))
   }
 
-  // Escape all regex special characters except the ones we handle as glob metacharacters
-  const escaped = pattern.replace(/[\\^$+?.()|[\]{}]/g, (ch) => {
-    // Keep braces for brace expansion (already handled above) and dots are re-escaped below
-    if (ch === '.') return '\\.'
-    return `\\${ch}`
-  })
+  // Escape regex special characters that are not glob metacharacters.
+  // We handle `*` (globstar and single-star) ourselves, so only escape the rest.
+  // Backslash is escaped first to prevent escaping the escape sequences added below.
+  const escaped = pattern
+    .replace(/\\/g, '\\\\')          // escape literal backslash before adding any new backslashes
+    .replace(/\^/g, '\\^')
+    .replace(/\$/g, '\\$')
+    .replace(/\+/g, '\\+')
+    .replace(/\./g, '\\.')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/\|/g, '\\|')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
 
   const regexStr = escaped
-    .replace(/\\\.\\\*/g, '\\.\\*')   // literal \* should stay escaped
     .replace(/\*\*/g, '__GLOBSTAR__')
     .replace(/\*/g, '[^/]*')
     .replace(/__GLOBSTAR__\//g, '(?:.*/)?')
@@ -310,7 +317,7 @@ export async function run(): Promise<void> {
   const results: ValidationResult[] = []
   for (const file of specFiles) {
     core.info(`Validating ${file}…`)
-    const result = await validateSpecFile(file, ruleset || undefined)
+    const result = await validateSpecFile(file, ruleset)
     results.push(result)
     if (result.errorCount > 0) {
       core.warning(`${file}: ${result.errorCount} error(s), ${result.warningCount} warning(s)`)
