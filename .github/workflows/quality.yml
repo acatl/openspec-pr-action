@@ -26,18 +26,19 @@ jobs:
 
       - name: shellcheck composite run scripts
         run: |
-          python3 -m pip install --quiet pyyaml
+          # --break-system-packages: the ubuntu-latest system Python is PEP 668
+          # "externally managed", so a plain pip install would abort. The runner
+          # is ephemeral, so touching the system env is fine here.
+          python3 -m pip install --break-system-packages --quiet pyyaml
           python3 - <<'PY'
           import subprocess, sys, tempfile, pathlib
           import yaml
 
-          actions = [
-              "openspec-merge-guard/action.yml",
-              "openspec-pr-linker/action.yml",
-          ]
+          # Auto-discover every composite action (each is <name>/action.yml at the
+          # repo root), so adding a third action is covered without editing CI.
           failed = False
-          for path in actions:
-              doc = yaml.safe_load(pathlib.Path(path).read_text())
+          for path in sorted(pathlib.Path(".").glob("*/action.yml")):
+              doc = yaml.safe_load(path.read_text())
               steps = doc.get("runs", {}).get("steps", [])
               for i, step in enumerate(steps):
                   if step.get("shell") != "bash" or "run" not in step:

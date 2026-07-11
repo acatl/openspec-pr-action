@@ -67,7 +67,9 @@ runs:
           // Encode each path segment but keep the "/" separators so a branch
           // name with URL-significant characters still produces a valid blob URL.
           const branch = prData.head.ref.split("/").map(encodeURIComponent).join("/");
-          const repo = prData.head.repo.full_name;
+          // head.repo can be null if the source fork was deleted; fall back to
+          // the base repo so the body-update path never throws.
+          const repo = (prData.head.repo && prData.head.repo.full_name) || prData.base.repo.full_name;
           const blobBase = "https://github.com/" + repo + "/blob/" + branch + "/";
           const ARTIFACTS = [["proposal", "proposal.md"], ["design", "design.md"], ["tasks", "tasks.md"]];
 

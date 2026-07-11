@@ -34,14 +34,17 @@ CI (`quality.yml`) runs the same checks plus `actionlint`, `shellcheck` on every
 
 ```bash
 python3 - <<'PY'
-import subprocess, tempfile, pathlib, yaml
-for path in ["openspec-merge-guard/action.yml", "openspec-pr-linker/action.yml"]:
-    doc = yaml.safe_load(pathlib.Path(path).read_text())
+import subprocess, sys, tempfile, pathlib, yaml
+failed = False
+for path in sorted(pathlib.Path(".").glob("*/action.yml")):
+    doc = yaml.safe_load(path.read_text())
     for step in doc.get("runs", {}).get("steps", []):
         if step.get("shell") == "bash" and "run" in step:
             with tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False) as fh:
                 fh.write("#!/usr/bin/env bash\n" + step["run"]); name = fh.name
-            subprocess.run(["shellcheck", "-e", "SC2016", name])
+            if subprocess.run(["shellcheck", "-e", "SC2016", name]).returncode != 0:
+                failed = True
+sys.exit(1 if failed else 0)
 PY
 ```
 
