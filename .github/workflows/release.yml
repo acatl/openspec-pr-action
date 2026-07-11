@@ -1,0 +1,49 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    # Scoped to this job: only release-please needs write access — to open/update
+    # the Release PR and push the tag + GitHub Release + the moved major tag.
+    permissions:
+      contents: write
+      pull-requests: write
+      # release-please creates/updates the "autorelease: *" labels on the Release
+      # PR; label writes need issues:write, and this repo starts with no labels.
+      issues: write
+    # Only the canonical repo cuts releases (never a fork).
+    if: github.repository == 'acatl/openspec-pr-action'
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Actions are consumed as `uses: acatl/openspec-pr-action/<action>@v1`.
+      # release-please tags vX.Y.Z but not the floating major tag, so move it
+      # to the release just cut.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          fetch-depth: 0
+
+      - name: Move major tag
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          MAJOR: ${{ steps.release.outputs.major }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "v${MAJOR}" "${TAG}"
+          git push origin "v${MAJOR}" --force

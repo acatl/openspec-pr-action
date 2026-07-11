@@ -1,0 +1,182 @@
+name: OpenSpec PR Linker
+description: Detects active OpenSpec changes and prepends artifact links to the PR description
+
+inputs:
+  openspec-version:
+    description: "Version of @fission-ai/openspec CLI to install"
+    required: false
+    default: "1.3.1"
+
+runs:
+  using: composite
+  steps:
+    - name: Check for OpenSpec config
+      id: check-config
+      shell: bash
+      run: |
+        if [ ! -f "openspec/config.yaml" ]; then
+          echo "No openspec/config.yaml found — skipping OpenSpec PR linker."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Setup Node.js
+      if: steps.check-config.outputs.skip == 'false'
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ".nvmrc"
+
+    - name: Install OpenSpec CLI
+      if: steps.check-config.outputs.skip == 'false'
+      shell: bash
+      env:
+        OPENSPEC_VERSION: ${{ inputs.openspec-version }}
+      run: |
+        # Version comes through an env var (not template interpolation) and is
+        # format-validated before use — avoids any shell-injection surface.
+        if ! printf '%s' "$OPENSPEC_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "::error::Invalid openspec-version '$OPENSPEC_VERSION' (expected N.N.N)."
+          exit 1
+        fi
+        npm install -g "@fission-ai/openspec@${OPENSPEC_VERSION}"
+
+    - name: Detect changes and update PR body
+      if: steps.check-config.outputs.skip == 'false'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        CHANGES_JSON=$(openspec list --json)
+
+        # Fetch current PR data
+        gh api "repos/${REPO}/pulls/${PR_NUMBER}" > /tmp/pr-data.json
+
+        # Process changes and build updated body
+        SKIP=$(CHANGES_JSON="$CHANGES_JSON" node -e '
+          const fs = require("fs");
+          const changesData = JSON.parse(process.env.CHANGES_JSON);
+          const prData = JSON.parse(fs.readFileSync("/tmp/pr-data.json", "utf8"));
+          const currentBody = prData.body || "";
+
+          const START = "<!-- openspec-pr-linker:start -->";
+          const END = "<!-- openspec-pr-linker:end -->";
+          const changes = changesData.changes;
+          // Encode each path segment but keep the "/" separators so a branch
+          // name with URL-significant characters still produces a valid blob URL.
+          const branch = prData.head.ref.split("/").map(encodeURIComponent).join("/");
+          // head.repo can be null if the source fork was deleted; fall back to
+          // the base repo so the body-update path never throws.
+          const repo = (prData.head.repo && prData.head.repo.full_name) || prData.base.repo.full_name;
+          const blobBase = "https://github.com/" + repo + "/blob/" + branch + "/";
+          const ARTIFACTS = [["proposal", "proposal.md"], ["design", "design.md"], ["tasks", "tasks.md"]];
+
+          function parseNamesFromSection(body) {
+            const startIdx = body.indexOf(START);
+            const endIdx = body.indexOf(END);
+            if (startIdx === -1 || endIdx === -1) return [];
+            const section = body.slice(startIdx, endIdx);
+            const matches = [...section.matchAll(/\*\*([^*]+)\*\*/g)];
+            return matches.map(m => m[1]);
+          }
+
+          function findArchived(names) {
+            const archiveDir = "openspec/changes/archive";
+            if (!fs.existsSync(archiveDir)) return [];
+            const entries = fs.readdirSync(archiveDir);
+            const results = [];
+            for (const name of names) {
+              // Strip the YYYY-MM-DD- prefix and match the remaining name exactly,
+              // so "ui" cannot match an unrelated "2026-07-10-fix-ui" archive.
+              const match = entries.find(e => e.replace(/^\d{4}-\d{2}-\d{2}-/, "") === name);
+              if (match) {
+                results.push({ name, dir: archiveDir + "/" + match });
+              }
+            }
+            return results;
+          }
+
+          // Link only the artifacts that actually exist on disk — a change may
+          // not have every artifact yet (avoids 404 links in the PR body).
+          function artifactLinks(fsDir, urlBase) {
+            return ARTIFACTS
+              .filter(([, file]) => fs.existsSync(fsDir + "/" + file))
+              .map(([label, file]) => "[" + label + "](" + urlBase + "/" + file + ")")
+              .join(" · ");
+          }
+
+          function buildSection(activeChanges, archivedChanges) {
+            const lines = [START, "### OpenSpec Changes", ""];
+            for (const c of activeChanges) {
+              const fsDir = "openspec/changes/" + c.name;
+              const status = c.totalTasks > 0
+                ? c.completedTasks + "/" + c.totalTasks + " tasks"
+                : c.status.replace(/-/g, " ");
+              lines.push("**" + c.name + "** — " + status);
+              const links = artifactLinks(fsDir, blobBase + fsDir);
+              if (links) lines.push(links);
+              lines.push("");
+            }
+            for (const a of archivedChanges) {
+              lines.push("**" + a.name + "** — archived");
+              const links = artifactLinks(a.dir, blobBase + a.dir);
+              if (links) lines.push(links);
+              lines.push("");
+            }
+            lines.push(END);
+            return lines.join("\n");
+          }
+
+          const hasMarkers = currentBody.includes(START) && currentBody.includes(END);
+          let newBody;
+
+          if (changes.length === 0 && !hasMarkers) {
+            process.stdout.write("true");
+            process.exit(0);
+          } else if (changes.length === 0 && hasMarkers) {
+            const previousNames = parseNamesFromSection(currentBody);
+            const archived = findArchived(previousNames);
+            const startIdx = currentBody.indexOf(START);
+            const endIdx = currentBody.indexOf(END) + END.length;
+            if (archived.length > 0) {
+              newBody = currentBody.slice(0, startIdx) + buildSection([], archived) + currentBody.slice(endIdx);
+            } else {
+              // Remove the block; normalize ONLY the seam it leaves, never the rest of the body.
+              const before = currentBody.slice(0, startIdx).replace(/\n+$/, "");
+              const after = currentBody.slice(endIdx).replace(/^\n+/, "");
+              newBody = before && after ? before + "\n\n" + after : before + after;
+            }
+          } else if (hasMarkers) {
+            const previousNames = parseNamesFromSection(currentBody);
+            const activeNames = new Set(changes.map(c => c.name));
+            const goneNames = previousNames.filter(n => !activeNames.has(n));
+            const archived = findArchived(goneNames);
+            const startIdx = currentBody.indexOf(START);
+            const endIdx = currentBody.indexOf(END) + END.length;
+            newBody = currentBody.slice(0, startIdx) + buildSection(changes, archived) + currentBody.slice(endIdx);
+          } else {
+            const section = buildSection(changes, []);
+            newBody = currentBody ? section + "\n\n" + currentBody : section;
+          }
+
+          // Idempotent: if the rebuilt body is byte-identical, skip the PATCH
+          // entirely — no needless API write or PR-timeline noise each CI run.
+          if (newBody === currentBody) {
+            process.stdout.write("true");
+            process.exit(0);
+          }
+
+          fs.writeFileSync("/tmp/pr-update.json", JSON.stringify({ body: newBody }));
+          process.stdout.write("false");
+        ')
+
+        if [ "$SKIP" = "true" ]; then
+          # SKIP covers both "no changes and no markers" and "body already in sync".
+          echo "PR body already up to date. Nothing to change."
+          exit 0
+        fi
+
+        gh api "repos/${REPO}/pulls/${PR_NUMBER}" -X PATCH --input /tmp/pr-update.json > /dev/null
+        echo "PR body updated with OpenSpec changes."

@@ -1,0 +1,39 @@
+# Project dictionary for cspell — domain terms, names, and tool/identifier words
+# that are correct in this repo but absent from the base dictionaries.
+
+# People / org
+Acatl
+Pacheco
+
+# Core domain
+OpenSpec
+openspec
+Fission
+proposal
+changeset
+idempotent
+idempotency
+unarchived
+
+# OSS tooling
+actionlint
+shellcheck
+markdownlint
+cspell
+lychee
+husky
+commitlint
+dependabot
+Dependabot
+changelog
+nvmrc
+pyyaml
+gcc
+
+# GitHub / config
+repo
+Conventional
+YAML
+yaml
+yml
+jsonc

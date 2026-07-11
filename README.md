@@ -1,130 +1,51 @@
-# openspec-pr-action
+# OpenSpec PR Actions
 
-[![CI](https://github.com/acatl/openspec-pr-action/actions/workflows/ci.yml/badge.svg)](https://github.com/acatl/openspec-pr-action/actions/workflows/ci.yml)
+Reusable GitHub composite actions for repositories that use [OpenSpec](https://github.com/Fission-AI/OpenSpec). They keep spec, implementation, and archive traveling together through the pull-request lifecycle.
 
-A GitHub Action that automatically validates OpenAPI specification files changed in a pull request and posts a summary comment with the results.
+| Action | What it does |
+| ------ | ------------ |
+| [`openspec-merge-guard`](./openspec-merge-guard) | Fails a PR while it still carries an unarchived OpenSpec change. |
+| [`openspec-pr-linker`](./openspec-pr-linker) | Prepends a managed "OpenSpec Changes" section to the PR body, linking each change's proposal / design / tasks. |
 
-## Features
+Both actions no-op on repositories without an `openspec/config.yaml`, so they are safe to add before OpenSpec adoption is complete.
 
-- 🔍 Detects changed OpenAPI spec files (`.yaml`, `.yml`, `.json`) in a PR
-- ✅ Validates specs using [Spectral](https://stoplight.io/open-source/spectral) with the OAS recommended ruleset
-- 💬 Posts (or updates) a PR comment with a detailed validation report
-- ⚙️ Supports custom Spectral rulesets
-- 🚦 Configurable pass/fail thresholds for errors and warnings
-
-## Usage
-
-Add the following step to your workflow:
+## Quick start
 
 ```yaml
-name: Validate OpenAPI Specs
-
-on:
-  pull_request:
+# .github/workflows/openspec.yml
+name: OpenSpec
+on: pull_request
 
 jobs:
-  validate:
+  merge-guard:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: acatl/openspec-pr-action/openspec-merge-guard@v1
 
-      - name: Validate OpenAPI specs
-        uses: acatl/openspec-pr-action@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+  pr-linker:
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: acatl/openspec-pr-action/openspec-pr-linker@v1
 ```
 
-## Inputs
+To block merges, add the merge-guard job as a **required status check** in branch protection. Both actions read the Node version from the consuming repo's `.nvmrc`.
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `github-token` | GitHub token for API requests and posting PR comments | Yes | `${{ github.token }}` |
-| `spec-glob` | Glob pattern to identify OpenAPI spec files | No | `**/*.{yaml,yml,json}` |
-| `ruleset` | Path to a custom Spectral ruleset file | No | _(built-in OAS recommended)_ |
-| `fail-on-error` | Fail the action when validation errors are found | No | `true` |
-| `fail-on-warning` | Fail the action when validation warnings are found | No | `false` |
+## Versioning
 
-## Outputs
+Actions are referenced by the repo tag. Pin to a major (`@v1`) for automatic patch/minor updates, or to an exact tag (`@v1.0.0`) for full immutability.
 
-| Output | Description |
-|--------|-------------|
-| `result` | Overall result: `passed`, `warnings`, or `failed` |
-| `error-count` | Total number of validation errors found |
-| `warning-count` | Total number of validation warnings found |
-
-## Examples
-
-### Custom spec glob
-
-```yaml
-- uses: acatl/openspec-pr-action@v1
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    spec-glob: 'api/**/*.yaml'
-```
-
-### Custom Spectral ruleset
-
-```yaml
-- uses: acatl/openspec-pr-action@v1
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    ruleset: '.spectral.yaml'
-```
-
-### Fail on warnings too
-
-```yaml
-- uses: acatl/openspec-pr-action@v1
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    fail-on-warning: 'true'
-```
-
-### Use the outputs
-
-```yaml
-- id: validate
-  uses: acatl/openspec-pr-action@v1
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-
-- run: echo "Result=${{ steps.validate.outputs.result }}, Errors=${{ steps.validate.outputs.error-count }}"
-```
-
-## Development
-
-### Prerequisites
-
-- Node.js 20+
-- npm
-
-### Setup
-
-```bash
-npm install
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-### Test
-
-```bash
-npm test
-```
-
-### Package (bundle for distribution)
-
-```bash
-npm run package
-```
-
-This uses [`@vercel/ncc`](https://github.com/vercel/ncc) to bundle the compiled TypeScript and all dependencies into a single `dist/index.js` file. **Always run this before pushing changes** so the `dist/` folder stays up to date.
+See each action's README for inputs and details.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
