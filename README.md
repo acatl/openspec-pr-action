@@ -6,7 +6,7 @@ These actions wire OpenSpec into the pull-request lifecycle: one **guards** the 
 
 | Action | One-line |
 | ------ | -------- |
-| [`openspec-pr-linker`](./openspec-pr-linker) | Keeps an "OpenSpec Changes" section at the top of the PR body, linking each change's artifacts. |
+| [`openspec-pr-linker`](./openspec-pr-linker) | Maintains an "OpenSpec Changes" section in the PR body, linking each change's artifacts. |
 | [`openspec-merge-guard`](./openspec-merge-guard) | Fails a PR that still carries an unarchived OpenSpec change. |
 
 Each subdirectory has its own README with the full input reference and edge-case behavior. This page is the overview plus the branch-protection guidance.
@@ -34,7 +34,7 @@ See [Versioning](#versioning) for how to pin.
 
 ### What it is
 
-A step that maintains a marker-delimited **"OpenSpec Changes"** block at the top of the pull request description.
+A step that maintains a marker-delimited **"OpenSpec Changes"** block in the pull request description — prepended to the top when first created, then rewritten in place on later runs.
 
 ### What it does
 
@@ -126,7 +126,7 @@ Full inputs: [openspec-merge-guard/README.md](./openspec-merge-guard/README.md).
 
 Notes that make this reliable:
 
-- The check is identified by the **job name** you give it in your workflow — you choose that name, and it becomes selectable as a required check only *after* the workflow has run on a PR at least once.
+- The check appears in branch protection as **`<workflow name> / <job name>`** (both of which you choose), and it becomes selectable as a required check only *after* the workflow has run on a PR at least once.
 - Because the guard skips (passes) in repositories without `openspec/config.yaml`, requiring it is safe there. In a repo that *has* OpenSpec configured, the guard evaluates every active change on the branch — regardless of which files a given PR touches — so a PR can fail it even without touching any spec.
 - Requiring the check does not stop anyone from archiving; it only holds the merge until they do.
 
@@ -137,7 +137,7 @@ GitHub owns this configuration and its UI changes over time — follow the curre
 
 ## Versioning
 
-Reference an action by a Git tag on this repository:
+Reference an action by a Git ref on this repository:
 
 - **`@v1`** — floating major tag; picks up backward-compatible fixes and features automatically.
 - **`@v1.2.3`** — an exact release tag; more stable than a floating tag, though a tag can be re-pointed unless the repository protects it.
