@@ -19,14 +19,14 @@ Both actions:
 - **Install the OpenSpec CLI** (`@fission-ai/openspec`) at a pinned, format-validated version. The default is set in each action's `action.yml`; override it with the `openspec-version` input.
 - **Read the Node version from the consuming repo's `.nvmrc`** when they run. A repo with `openspec/config.yaml` needs one; repos without it skip before this step, so no `.nvmrc` is required pre-adoption.
 
-They are consumed by path, since this repository hosts more than one action:
+Because this repository hosts more than one action, reference each by its subdirectory path:
 
-```yaml
-- uses: acatl/openspec-pr-action/openspec-pr-linker@v1
-- uses: acatl/openspec-pr-action/openspec-merge-guard@v1
+```text
+acatl/openspec-pr-action/openspec-pr-linker@v1
+acatl/openspec-pr-action/openspec-merge-guard@v1
 ```
 
-See [Versioning](#versioning) for how to pin.
+See each action's Usage section below for a complete, copy-ready workflow job, and [Versioning](#versioning) for how to pin.
 
 ---
 
@@ -126,7 +126,7 @@ Full inputs: [openspec-merge-guard/README.md](./openspec-merge-guard/README.md).
 
 Notes that make this reliable:
 
-- The check appears in branch protection as **`<workflow name> / <job name>`** (both of which you choose), and it becomes selectable as a required check only *after* the workflow has run on a PR at least once.
+- The check appears in branch protection as **`<workflow name> / <job>`**, where `<job>` is the job's `name:` if set, otherwise its job id. It becomes selectable as a required check only *after* the workflow has run on a PR at least once.
 - Because the guard skips (passes) in repositories without `openspec/config.yaml`, requiring it is safe there. In a repo that *has* OpenSpec configured, the guard evaluates every active change on the branch — regardless of which files a given PR touches — so a PR can fail it even without touching any spec.
 - Requiring the check does not stop anyone from archiving; it only holds the merge until they do.
 
