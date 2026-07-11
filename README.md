@@ -17,7 +17,7 @@ Both actions:
 
 - **No-op when there is no `openspec/config.yaml`.** They detect it and exit success, so they are safe to add before (or without) full OpenSpec adoption.
 - **Install the OpenSpec CLI** (`@fission-ai/openspec`) at a pinned, format-validated version. The default is set in each action's `action.yml`; override it with the `openspec-version` input.
-- **Read the Node version from the consuming repo's `.nvmrc`.** Your repo needs one.
+- **Read the Node version from the consuming repo's `.nvmrc`** when they run. A repo with `openspec/config.yaml` needs one; repos without it skip before this step, so no `.nvmrc` is required pre-adoption.
 
 They are consumed by path, since this repository hosts more than one action:
 
