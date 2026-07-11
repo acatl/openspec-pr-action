@@ -32,23 +32,13 @@ CI (`quality.yml`) runs the same checks plus `actionlint`, `shellcheck` on every
 
 ### Reproducing the composite shellcheck locally
 
+CI and this run the same checked-in script — a single source of truth:
+
 ```bash
-python3 - <<'PY'
-import subprocess, sys, tempfile, pathlib, yaml
-failed = False
-for path in sorted(pathlib.Path(".").glob("*/action.yml")):
-    doc = yaml.safe_load(path.read_text())
-    for step in doc.get("runs", {}).get("steps", []):
-        if step.get("shell") == "bash" and "run" in step:
-            with tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False) as fh:
-                fh.write("#!/usr/bin/env bash\n" + step["run"]); name = fh.name
-            if subprocess.run(["shellcheck", "-e", "SC2016", name]).returncode != 0:
-                failed = True
-sys.exit(1 if failed else 0)
-PY
+python3 scripts/shellcheck-composite.py
 ```
 
-Requires `shellcheck` and `pyyaml`.
+Requires `shellcheck` and `pyyaml`. On an externally-managed Python (e.g. Ubuntu 24.04, matching the CI runner) a plain `pip install pyyaml` fails under PEP 668 — use `pip install --user pyyaml` or `pip install --break-system-packages pyyaml`.
 
 ## Testing against a real repo
 

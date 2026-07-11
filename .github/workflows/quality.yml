@@ -16,6 +16,7 @@ jobs:
   actions:
     name: actionlint + shellcheck
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -30,38 +31,12 @@ jobs:
           # "externally managed", so a plain pip install would abort. The runner
           # is ephemeral, so touching the system env is fine here.
           python3 -m pip install --break-system-packages --quiet pyyaml
-          python3 - <<'PY'
-          import subprocess, sys, tempfile, pathlib
-          import yaml
-
-          # Auto-discover every composite action (each is <name>/action.yml at the
-          # repo root), so adding a third action is covered without editing CI.
-          failed = False
-          for path in sorted(pathlib.Path(".").glob("*/action.yml")):
-              doc = yaml.safe_load(path.read_text())
-              steps = doc.get("runs", {}).get("steps", [])
-              for i, step in enumerate(steps):
-                  if step.get("shell") != "bash" or "run" not in step:
-                      continue
-                  script = "#!/usr/bin/env bash\n" + step["run"]
-                  with tempfile.NamedTemporaryFile(
-                      "w", suffix=".sh", delete=False
-                  ) as fh:
-                      fh.write(script)
-                      name = fh.name
-                  print(f"::group::shellcheck {path} step {i} ({step.get('name','')})")
-                  # SC2016: single-quoted node -e payloads intentionally avoid shell expansion.
-                  rc = subprocess.run(
-                      ["shellcheck", "-e", "SC2016", name]
-                  ).returncode
-                  print("::endgroup::")
-                  failed = failed or rc != 0
-          sys.exit(1 if failed else 0)
-          PY
+          python3 scripts/shellcheck-composite.py
 
   docs:
     name: markdown lint + spell
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -84,6 +59,7 @@ jobs:
   links:
     name: internal link check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
