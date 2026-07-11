@@ -6,8 +6,8 @@ These actions wire OpenSpec into the pull-request lifecycle: one **guards** the 
 
 | Action | One-line |
 | ------ | -------- |
-| [`openspec-merge-guard`](./openspec-merge-guard) | Fails a PR that still carries an unarchived OpenSpec change. |
 | [`openspec-pr-linker`](./openspec-pr-linker) | Keeps an "OpenSpec Changes" section at the top of the PR body, linking each change's artifacts. |
+| [`openspec-merge-guard`](./openspec-merge-guard) | Fails a PR that still carries an unarchived OpenSpec change. |
 
 Each subdirectory has its own README with the full input reference and edge-case behavior. This page is the overview plus the branch-protection guidance.
 
@@ -22,51 +22,11 @@ Both actions:
 They are consumed by path, since this repository hosts more than one action:
 
 ```yaml
-- uses: acatl/openspec-pr-action/openspec-merge-guard@v1
 - uses: acatl/openspec-pr-action/openspec-pr-linker@v1
+- uses: acatl/openspec-pr-action/openspec-merge-guard@v1
 ```
 
 See [Versioning](#versioning) for how to pin.
-
----
-
-## `openspec-merge-guard`
-
-### What it is
-
-A status check that reports whether the branch still has an **active (unarchived)** OpenSpec change.
-
-### What it does
-
-Runs `openspec list` and fails if any change is still active, printing the offending change names and how to resolve them. Passes when every change has been archived (or when there are none).
-
-### What to expect
-
-| Situation | Result |
-| --------- | ------ |
-| No `openspec/config.yaml` | Skips (success) |
-| One or more unarchived changes | **Fails** — lists them in the log |
-| All changes archived / no changes | Passes |
-
-### What it is **not**
-
-- **Not a merge blocker on its own.** It only produces a pass/fail signal. Enforcement comes from branch protection — see [Blocking a PR](#blocking-or-not-blocking-a-pr).
-- **Not an archiver.** It won't archive anything for you; it tells you that you still need to.
-- **Not a spec-quality check.** It says nothing about whether a spec is good, complete, or correct — only whether it has been archived.
-
-### Usage
-
-```yaml
-jobs:
-  openspec-merge-guard:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: acatl/openspec-pr-action/openspec-merge-guard@v1
-```
-
-Full inputs: [openspec-merge-guard/README.md](./openspec-merge-guard/README.md).
 
 ---
 
@@ -113,6 +73,46 @@ jobs:
 ```
 
 Full inputs and the section format: [openspec-pr-linker/README.md](./openspec-pr-linker/README.md).
+
+---
+
+## `openspec-merge-guard`
+
+### What it is
+
+A status check that reports whether the branch still has an **active (unarchived)** OpenSpec change.
+
+### What it does
+
+Runs `openspec list` and fails if any change is still active, printing the offending change names and how to resolve them. Passes when every change has been archived (or when there are none).
+
+### What to expect
+
+| Situation | Result |
+| --------- | ------ |
+| No `openspec/config.yaml` | Skips (success) |
+| One or more unarchived changes | **Fails** — lists them in the log |
+| All changes archived / no changes | Passes |
+
+### What it is **not**
+
+- **Not a merge blocker on its own.** It only produces a pass/fail signal. Enforcement comes from branch protection — see [Blocking a PR](#blocking-or-not-blocking-a-pr).
+- **Not an archiver.** It won't archive anything for you; it tells you that you still need to.
+- **Not a spec-quality check.** It says nothing about whether a spec is good, complete, or correct — only whether it has been archived.
+
+### Usage
+
+```yaml
+jobs:
+  openspec-merge-guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: acatl/openspec-pr-action/openspec-merge-guard@v1
+```
+
+Full inputs: [openspec-merge-guard/README.md](./openspec-merge-guard/README.md).
 
 ---
 
