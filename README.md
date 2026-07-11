@@ -127,7 +127,7 @@ Full inputs: [openspec-merge-guard/README.md](./openspec-merge-guard/README.md).
 Notes that make this reliable:
 
 - The check is identified by the **job name** you give it in your workflow — you choose that name, and it becomes selectable as a required check only *after* the workflow has run on a PR at least once.
-- Because the guard skips (passes) when there is no `openspec/config.yaml`, requiring it is safe even for PRs that touch no specs.
+- Because the guard skips (passes) in repositories without `openspec/config.yaml`, requiring it is safe there. In a repo that *has* OpenSpec configured, the guard evaluates every active change on the branch — regardless of which files a given PR touches — so a PR can fail it even without touching any spec.
 - Requiring the check does not stop anyone from archiving; it only holds the merge until they do.
 
 GitHub owns this configuration and its UI changes over time — follow the current official docs rather than a fixed click-path:
@@ -140,8 +140,8 @@ GitHub owns this configuration and its UI changes over time — follow the curre
 Reference an action by a Git tag on this repository:
 
 - **`@v1`** — floating major tag; picks up backward-compatible fixes and features automatically.
-- **`@v1.2.3`** — an exact release tag; fully immutable.
-- **A commit SHA** — maximum supply-chain hardening.
+- **`@v1.2.3`** — an exact release tag; more stable than a floating tag, though a tag can be re-pointed unless the repository protects it.
+- **A commit SHA** — content-addressed and immutable; maximum supply-chain hardening.
 
 Releases follow [Semantic Versioning](https://semver.org/) and are recorded in [CHANGELOG.md](./CHANGELOG.md).
 
