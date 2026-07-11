@@ -171,7 +171,8 @@ runs:
         ')
 
         if [ "$SKIP" = "true" ]; then
-          echo "No active changes and no existing markers. Nothing to update."
+          # SKIP covers both "no changes and no markers" and "body already in sync".
+          echo "PR body already up to date. Nothing to change."
           exit 0
         fi
 

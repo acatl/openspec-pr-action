@@ -17,6 +17,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # release-please creates/updates the "autorelease: *" labels on the Release
+      # PR; label writes need issues:write, and this repo starts with no labels.
+      issues: write
     # Only the canonical repo cuts releases (never a fork).
     if: github.repository == 'acatl/openspec-pr-action'
     steps:

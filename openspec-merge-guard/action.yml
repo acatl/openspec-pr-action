@@ -50,7 +50,7 @@ runs:
         CHANGE_COUNT=$(printf '%s' "$CHANGES_JSON" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).changes.length')
 
         if [ "$CHANGE_COUNT" -gt 0 ]; then
-          echo "::error::Unarchived OpenSpec changes found. Archive them before merging (single-merge: the archive rides the feature PR)."
+          echo "::error::Unarchived OpenSpec changes found. Archive them before merging."
           echo ""
           echo "The following OpenSpec changes have not been archived:"
           printf '%s' "$CHANGES_JSON" | node -e '
@@ -60,7 +60,7 @@ runs:
             }
           '
           echo ""
-          echo "Run: /harness:finish (or: openspec archive <name>), then push to the PR."
+          echo "Run: openspec archive <name>, then push to update the PR."
           exit 1
         fi
 

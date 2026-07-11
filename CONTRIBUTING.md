@@ -68,3 +68,8 @@ Versioning follows [Semantic Versioning](https://semver.org/) and is **automated
   moves the floating major tag (`v1`) to that release so `uses: …@v1` consumers pick it up.
 
 Config: [`release-please-config.json`](release-please-config.json) + [`.release-please-manifest.json`](.release-please-manifest.json).
+
+> **One-time bootstrap — remove after the first release.** `release-please-config.json` sets
+> `"release-as": "1.0.0"` so the first Release PR is cut as `v1.0.0` (the manifest starts at
+> `0.0.0`). **After that first Release PR merges, delete the `release-as` line** — otherwise every
+> subsequent release stays pinned to `1.0.0`.
