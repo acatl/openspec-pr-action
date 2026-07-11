@@ -1,7 +1,9 @@
+# OS / editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Node toolchain (lint/spell/hooks only; the actions themselves have no runtime deps)
 node_modules/
-dist/
-lib/
-coverage/
-*.js.map
-*.d.ts
-!jest.config.js
+npm-debug.log*

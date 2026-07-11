@@ -1,0 +1,95 @@
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actions:
+    name: actionlint + shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: actionlint (workflows)
+        uses: raven-actions/actionlint@v2
+
+      - name: shellcheck composite run scripts
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import subprocess, sys, tempfile, pathlib
+          import yaml
+
+          actions = [
+              "openspec-merge-guard/action.yml",
+              "openspec-pr-linker/action.yml",
+          ]
+          failed = False
+          for path in actions:
+              doc = yaml.safe_load(pathlib.Path(path).read_text())
+              steps = doc.get("runs", {}).get("steps", [])
+              for i, step in enumerate(steps):
+                  if step.get("shell") != "bash" or "run" not in step:
+                      continue
+                  script = "#!/usr/bin/env bash\n" + step["run"]
+                  with tempfile.NamedTemporaryFile(
+                      "w", suffix=".sh", delete=False
+                  ) as fh:
+                      fh.write(script)
+                      name = fh.name
+                  print(f"::group::shellcheck {path} step {i} ({step.get('name','')})")
+                  # SC2016: single-quoted node -e payloads intentionally avoid shell expansion.
+                  rc = subprocess.run(
+                      ["shellcheck", "-e", "SC2016", name]
+                  ).returncode
+                  print("::endgroup::")
+                  failed = failed or rc != 0
+          sys.exit(1 if failed else 0)
+          PY
+
+  docs:
+    name: markdown lint + spell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Markdown lint
+        run: npm run lint:md
+
+      - name: Spell check
+        run: npm run spell
+
+  links:
+    name: internal link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Lychee (offline / internal links)
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2
+        with:
+          args: "--offline --no-progress './**/*.md'"
+          fail: true

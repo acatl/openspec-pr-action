@@ -1,0 +1,67 @@
+name: OpenSpec Merge Guard
+description: Prevents merging pull requests with unarchived OpenSpec changes
+
+inputs:
+  openspec-version:
+    description: "Version of @fission-ai/openspec CLI to install"
+    required: false
+    default: "1.3.1"
+
+runs:
+  using: composite
+  steps:
+    - name: Check for OpenSpec config
+      id: check-config
+      shell: bash
+      run: |
+        if [ ! -f "openspec/config.yaml" ]; then
+          echo "No openspec/config.yaml found — skipping OpenSpec merge guard."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Setup Node.js
+      if: steps.check-config.outputs.skip == 'false'
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ".nvmrc"
+
+    - name: Install OpenSpec CLI
+      if: steps.check-config.outputs.skip == 'false'
+      shell: bash
+      env:
+        OPENSPEC_VERSION: ${{ inputs.openspec-version }}
+      run: |
+        # Version comes through an env var (not template interpolation) and is
+        # format-validated before use — avoids any shell-injection surface.
+        if ! printf '%s' "$OPENSPEC_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "::error::Invalid openspec-version '$OPENSPEC_VERSION' (expected N.N.N)."
+          exit 1
+        fi
+        npm install -g "@fission-ai/openspec@${OPENSPEC_VERSION}"
+
+    - name: Check for unarchived OpenSpec changes
+      if: steps.check-config.outputs.skip == 'false'
+      shell: bash
+      run: |
+        CHANGES_JSON=$(openspec list --json)
+        # printf '%s' (not echo) for byte-exact JSON into node — echo can mangle backslashes.
+        CHANGE_COUNT=$(printf '%s' "$CHANGES_JSON" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).changes.length')
+
+        if [ "$CHANGE_COUNT" -gt 0 ]; then
+          echo "::error::Unarchived OpenSpec changes found. Archive them before merging (single-merge: the archive rides the feature PR)."
+          echo ""
+          echo "The following OpenSpec changes have not been archived:"
+          printf '%s' "$CHANGES_JSON" | node -e '
+            const data = JSON.parse(require("fs").readFileSync(0,"utf8"));
+            for (const change of data.changes) {
+              console.log("  - " + change.name + " (" + change.status + ")");
+            }
+          '
+          echo ""
+          echo "Run: /harness:finish (or: openspec archive <name>), then push to the PR."
+          exit 1
+        fi
+
+        echo "No unarchived OpenSpec changes found. Merge guard passed."

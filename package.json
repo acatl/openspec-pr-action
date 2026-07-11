@@ -1,45 +1,28 @@
 {
   "name": "openspec-pr-action",
-  "version": "1.0.0",
-  "description": "GitHub Action that validates OpenAPI specification files in pull requests",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "package": "npm run build && ncc build dist/index.js --license licenses.txt -o dist",
-    "test": "jest",
-    "lint": "tsc --noEmit",
-    "all": "npm run build && npm run package && npm test"
-  },
+  "version": "0.0.0",
+  "private": true,
+  "description": "Reusable GitHub composite actions for OpenSpec repositories (merge guard + PR linker).",
+  "license": "MIT",
+  "author": "Acatl Pacheco",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/acatl/openspec-pr-action.git"
+    "url": "https://github.com/acatl/openspec-pr-action.git"
   },
-  "keywords": [
-    "github-actions",
-    "openapi",
-    "spectral",
-    "validation",
-    "pull-request"
-  ],
-  "author": "acatl",
-  "license": "MIT",
-  "overrides": {
-    "undici": "^7.28.0"
+  "scripts": {
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
+    "spell": "cspell --no-progress --gitignore \"**/*.md\"",
+    "check": "npm run lint:md && npm run spell",
+    "prepare": "husky"
   },
-  "dependencies": {
-    "@actions/core": "^1.10.1",
-    "@actions/github": "^8.0.1",
-    "@actions/glob": "^0.4.0",
-    "@stoplight/spectral-core": "^1.18.3",
-    "@stoplight/spectral-formats": "^1.7.0",
-    "@stoplight/spectral-rulesets": "^1.19.0"
+  "engines": {
+    "node": ">=22.12.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.14.0",
-    "@vercel/ncc": "^0.38.1",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.4",
-    "typescript": "^5.4.5"
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
+    "cspell": "^8.17.5",
+    "husky": "^9.1.7",
+    "markdownlint-cli2": "^0.16.0"
   }
 }
