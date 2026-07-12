@@ -107,6 +107,8 @@ jobs:
   openspec-merge-guard:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: acatl/openspec-pr-action/openspec-merge-guard@v1
