@@ -62,7 +62,7 @@ jobs:
     if: >
       github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'dependabot[bot]'
+      github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -84,7 +84,7 @@ A status check that reports whether the branch still has an **active (unarchived
 
 ### What it does
 
-Runs `openspec list` and fails if any change is still active, printing the offending change names and how to resolve them. Passes when every change has been archived (or when there are none).
+Runs `openspec list --json` and fails if any change is still active, printing the offending change names and how to resolve them. Passes when every change has been archived (or when there are none).
 
 ### What to expect
 
