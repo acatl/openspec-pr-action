@@ -128,7 +128,7 @@ Full inputs: [openspec-merge-guard/README.md](./openspec-merge-guard/README.md).
 
 Notes that make this reliable:
 
-- The check appears in branch protection as **`<workflow name> / <job>`**, where `<job>` is the job's `name:` if set, otherwise its job id. It becomes selectable as a required check only *after* the workflow has run on a PR at least once.
+- Require the check by its **job name** — the job's `name:` if set, otherwise its job id (`openspec-merge-guard` in the example above). The PR checks list may *display* it as `<workflow name> / <job>`, but the name you select as a required check is the job name; identical job names across different workflows are ambiguous. It becomes selectable only *after* the workflow has run on a PR at least once.
 - Because the guard skips (passes) in repositories without `openspec/config.yaml`, requiring it is safe there. In a repo that *has* OpenSpec configured, the guard evaluates every active change on the branch — regardless of which files a given PR touches — so a PR can fail it even without touching any spec.
 - Requiring the check does not stop anyone from archiving; it only holds the merge until they do.
 
